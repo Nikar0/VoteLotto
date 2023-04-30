@@ -1,7 +1,7 @@
 # Change fixed token per tier to % of pot per tier to accomodate any winning token
 # Find a strategy to yield pot during the week. Multiple Lottos with different strats? 
 - ftm + ftmsynth would be default for wftm deposit?
-- "Secure the Bag" with stable pot and stable distro?
-- higher risk LP with high APY?
+- "Secure the Bag" with ftm pot and stable distro? (vote for which stable)
+- higher risk LP with high APY? Vote on the strategy to use when depositing ftm
 
 # Tests (utils/helpers/swaps tested)
