@@ -1,3 +1,26 @@
+/** VoteLotto - Version 1.0
+@author Nikar0
+
+**
+Customized version of PancakeSwap's V2 Lottery, where users buy tickets w/ native & vote for whitelisted tokens.
+Upon lotto close, pot is swapped for most voted token and distributed to winners.
+Each tier rewards a % of total pot, shared by winners of said tier.
+
+**
+Why?
+Whereas the typical lotto is a closed environment for a protocol & their holders
+The VoteLotto has a wider reach w/ native pot, giving WL protocols & their holders buy pressure in case of a winning vote
+sharing exposure of their product between communities.
+
+**
+Possible Feature Additions post V1.0:
+Lottos with different yield strategies 
+Bribes
+
+
+https://github.com/Nikar0  https://twitter.com/Nikar0_  
+*/
+
 //SPDX-License-Identifier: GNU GPLv3
 pragma solidity ^0.8.17;
 
