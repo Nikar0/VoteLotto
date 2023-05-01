@@ -10,7 +10,7 @@ interface IVoteLotto {
      * @param _ticketNumbers: array of ticket numbers between 1,000,000 and 1,999,999
      * @dev Callable by users
      */
-    function buyTickets(uint256 _lottoId, uint32[] calldata _ticketNumbers, address _tokenVote) external;
+    function buyTickets(uint256 _lottoId, uint32[] calldata _ticketNumbers, address _tokenVote) payable external;
 
     /**
      * @notice Claim a set of winning tickets for a lottery

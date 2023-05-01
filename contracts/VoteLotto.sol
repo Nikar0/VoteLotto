@@ -30,6 +30,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./interfaces/IWETH.sol";
 import "./interfaces/IEqualizerRouter.sol";
 import "./interfaces/IRandomNumberGenerator.sol";
 import "./interfaces/IVoteLotto.sol";
@@ -82,6 +83,7 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
     uint256 public ticketPrice;
     uint256 public maxTicketPrice = 500;
     uint256 public minTicketPrice = 5;
+    bool private buyingTickets;
 
     uint256 public constant LOTTO_MIN_LENGTH = 1 days - 5 minutes; //1D
     uint256 public constant LOTTO_MAX_LENGTH  = 7 days + 5 minutes; //7D
@@ -153,16 +155,18 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
     }
 
     //USER FUNCTIONS//
-    function buyTickets(uint256 _lottoId, uint32[] calldata _ticketNumbers, address _tokenVote) override external nonReentrant{
+    function buyTickets(uint256 _lottoId, uint32[] calldata _ticketNumbers, address _tokenVote) payable override external nonReentrant{
         require(msg.sender == tx.origin, "Contract");
         require(_ticketNumbers.length != 0, "Specify a ticket");
         require(_ticketNumbers.length <= maxTickets, "< 100 tickets");
         require(_wlTokens.isWL[_tokenVote], "Token !WL");
         require(_lottos[_lottoId].status == Status.Ongoing, "Lotto !ongoing");
         require(block.timestamp < _lottos[_lottoId].endTime, "Lotto finished");
+        buyingTickets = true;
 
         uint256 finalPrice = _calcFinalPrice(_lottos[_lottoId].discountTier, _lottos[_lottoId].ticketPrice, _ticketNumbers.length);
-        payable(msg.sender).transfer(finalPrice);
+        require(msg.value >= finalPrice, "!Funds");
+        IWETH(wftm).deposit{value: msg.value}();
 
         _lottos[_lottoId].pot += finalPrice;
         _lottos[_lottoId].totalVotes += _ticketNumbers.length;
@@ -183,7 +187,8 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
             _userTicketIdsPerLottoId[msg.sender][_lottoId].push(currentTicketId);
 
             _tickets[currentTicketId] = Ticket({number: thisTicketNumber, owner: msg.sender, tokenVote: _tokenVote});
-
+            
+            buyingTickets = false;
             ++currentTicketId;
         }
         emit TicketPurchase(msg.sender, _lottoId, _ticketNumbers.length, _tokenVote);
@@ -262,13 +267,10 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
         require(block.timestamp > _lottos[_lottoId].endTime, "Ongoing");
         _lottos[_lottoId].firstTicketIdNextLotto = currentLottoId;
 
-        //Assign winning Token
+        //Assign winning Token & Pot swap
         _lottos[_lottoId].winningToken = _getWinVote();
-        if(_getWinVote() == wftm){
-           //DISTRO REWARDS
-        } else {
+        if(_getWinVote() != wftm){
             _swapPot(_getWinVote());
-            //DISTRO REWARDS
         }
 
         //Get VRF number
@@ -464,7 +466,6 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
     function calcFinalPrice(uint256 _discountTier, uint256 _ticketPrice, uint256 _numberTickets) external pure returns(uint256){
         require(_discountTier >= MIN_DISCOUNT_TIER, "!> minDiscount");
         require(_numberTickets != 0, ">= 1 Ticket");
-
         return(_calcFinalPrice(_discountTier, _ticketPrice, _numberTickets));
     }
 
@@ -485,11 +486,9 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
     }
 
     function viewRewardforTicketId(uint256 _lottoId, uint256 _ticketId, uint32 _tier) external view returns(uint256){
-        //Check if VoteLotto is Claimable
         if(_lottos[_lottoId].status != Status.Claimable){return 0;}
         //Check tickedIt in range
         if((_lottos[_lottoId].firstTicketIdNextLotto < _ticketId) && (_lottos[_lottoId].firstTicketId >= _ticketId)){return 0;}
-
         return _calcRewardForTicketId(_lottoId, _ticketId, _tier);
     }
 
@@ -522,6 +521,10 @@ contract VoteLotto is ReentrancyGuard, IVoteLotto, Ownable {
     modifier onlyGMorOperator(){
         require((msg.sender == gameMaster || msg.sender == operator), "auth");
         _;
+    }
+
+    receive() external payable {
+        require(buyingTickets, "!Ticket buy");
     }
 
 }
